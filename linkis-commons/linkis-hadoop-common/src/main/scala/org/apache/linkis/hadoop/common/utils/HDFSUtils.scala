@@ -41,6 +41,8 @@ object HDFSUtils extends Logging {
     new java.util.HashMap[String, HDFSFileSystemContainer]()
 
   private val LOCKER_SUFFIX = "_HDFS"
+  private val DEFAULT_CACHE_LABEL = "default"
+  private val JOINT = "_"
 
   if (HadoopConf.HDFS_ENABLE_CACHE) {
     logger.info("HDFS Cache enabled ")
@@ -59,7 +61,9 @@ object HDFSUtils extends Logging {
               val locker = hdfsFileSystemContainer.getUser + LOCKER_SUFFIX
               locker.intern() synchronized {
                 if (hdfsFileSystemContainer.canRemove()) {
-                  fileSystemCache.remove(hdfsFileSystemContainer.getUser)
+                  fileSystemCache.remove(
+                    hdfsFileSystemContainer.getUser + JOINT + hdfsFileSystemContainer.getLabel
+                  )
                   IOUtils.closeQuietly(hdfsFileSystemContainer.getFileSystem)
                   logger.info(
                     s"user${hdfsFileSystemContainer.getUser} to remove hdfsFileSystemContainer,because hdfsFileSystemContainer can remove"
@@ -124,15 +128,22 @@ object HDFSUtils extends Logging {
   def getHDFSUserFileSystem(
       userName: String,
       conf: org.apache.hadoop.conf.Configuration
+  ): FileSystem = getHDFSUserFileSystem(userName, DEFAULT_CACHE_LABEL, conf)
+
+  def getHDFSUserFileSystem(
+      userName: String,
+      label: String,
+      conf: org.apache.hadoop.conf.Configuration
   ): FileSystem = if (HadoopConf.HDFS_ENABLE_CACHE) {
-    val locker = userName + LOCKER_SUFFIX
+    val cacheKey = userName + JOINT + (if (label == null) DEFAULT_CACHE_LABEL else label)
+    val locker = cacheKey + LOCKER_SUFFIX
     locker.intern().synchronized {
-      val hdfsFileSystemContainer = if (fileSystemCache.containsKey(userName)) {
-        fileSystemCache.get(userName)
+      val hdfsFileSystemContainer = if (fileSystemCache.containsKey(cacheKey)) {
+        fileSystemCache.get(cacheKey)
       } else {
         val newHDFSFileSystemContainer =
-          new HDFSFileSystemContainer(createFileSystem(userName, conf), userName)
-        fileSystemCache.put(userName, newHDFSFileSystemContainer)
+          new HDFSFileSystemContainer(createFileSystem(userName, conf), userName, label)
+        fileSystemCache.put(cacheKey, newHDFSFileSystemContainer)
         newHDFSFileSystemContainer
       }
       hdfsFileSystemContainer.addAccessCount()
@@ -152,18 +163,28 @@ object HDFSUtils extends Logging {
       })
 
   def closeHDFSFIleSystem(fileSystem: FileSystem, userName: String): Unit =
-    if (null != fileSystem && StringUtils.isNotBlank(userName)) {
-      closeHDFSFIleSystem(fileSystem, userName, false)
-    }
+    closeHDFSFIleSystem(fileSystem, userName, DEFAULT_CACHE_LABEL, false)
+
+  def closeHDFSFIleSystem(fileSystem: FileSystem, userName: String, label: String): Unit =
+    closeHDFSFIleSystem(fileSystem, userName, label)
 
   def closeHDFSFIleSystem(fileSystem: FileSystem, userName: String, isForce: Boolean): Unit =
+    closeHDFSFIleSystem(fileSystem, userName, DEFAULT_CACHE_LABEL, isForce)
+
+  def closeHDFSFIleSystem(
+      fileSystem: FileSystem,
+      userName: String,
+      label: String,
+      isForce: Boolean
+  ): Unit =
     if (null != fileSystem && StringUtils.isNotBlank(userName)) {
       if (HadoopConf.HDFS_ENABLE_CACHE) {
-        val hdfsFileSystemContainer = fileSystemCache.get(userName)
+        val cacheKey = userName + JOINT + (if (label == null) DEFAULT_CACHE_LABEL else label)
+        val hdfsFileSystemContainer = fileSystemCache.get(cacheKey)
         if (null != hdfsFileSystemContainer) {
-          val locker = userName + LOCKER_SUFFIX
+          val locker = cacheKey + LOCKER_SUFFIX
           if (isForce) {
-            locker synchronized fileSystemCache.remove(hdfsFileSystemContainer.getUser)
+            locker synchronized fileSystemCache.remove(cacheKey)
             IOUtils.closeQuietly(hdfsFileSystemContainer.getFileSystem)
             logger.info(
               s"user${hdfsFileSystemContainer.getUser} to Force remove hdfsFileSystemContainer"

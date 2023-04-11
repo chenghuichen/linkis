@@ -196,7 +196,7 @@ public class HDFSFileSystem extends FileSystem {
     if (StorageConfiguration.FS_CACHE_DISABLE().getValue()) {
       conf.set("fs.hdfs.impl.disable.cache", "true");
     }
-    fs = HDFSUtils.getHDFSUserFileSystem(user, conf);
+    fs = HDFSUtils.getHDFSUserFileSystem(user, label, conf);
     if (fs == null) {
       throw new IOException("init HDFS FileSystem failed!");
     }
@@ -323,12 +323,12 @@ public class HDFSFileSystem extends FileSystem {
       synchronized (this) {
         if (fs != null) {
           if (HadoopConf.HDFS_ENABLE_CACHE()) {
-            HDFSUtils.closeHDFSFIleSystem(fs, user, true);
+            HDFSUtils.closeHDFSFIleSystem(fs, user, label, true);
           } else {
-            HDFSUtils.closeHDFSFIleSystem(fs, user);
+            HDFSUtils.closeHDFSFIleSystem(fs, user, label);
           }
           logger.warn(user + "FS reset close.");
-          fs = HDFSUtils.getHDFSUserFileSystem(user, conf);
+          fs = HDFSUtils.getHDFSUserFileSystem(user, label, conf);
         }
       }
     }
@@ -355,7 +355,7 @@ public class HDFSFileSystem extends FileSystem {
   @Override
   public void close() throws IOException {
     if (null != fs) {
-      HDFSUtils.closeHDFSFIleSystem(fs, user);
+      HDFSUtils.closeHDFSFIleSystem(fs, user, label);
     } else {
       logger.warn("FS was null, cannot close.");
     }

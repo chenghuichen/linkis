@@ -24,11 +24,14 @@ import org.apache.linkis.manager.am.manager.{EMNodeManager, EngineNodeManager}
 import org.apache.linkis.manager.am.service.EMEngineService
 import org.apache.linkis.manager.common.constant.AMConstant
 import org.apache.linkis.manager.common.entity.node._
+import org.apache.linkis.manager.common.entity.persistence.PersistenceLabel
 import org.apache.linkis.manager.common.protocol.em._
 import org.apache.linkis.manager.common.protocol.engine.EngineStopRequest
 import org.apache.linkis.manager.common.utils.ManagerUtils
 import org.apache.linkis.manager.engineplugin.common.launch.entity.EngineConnBuildRequest
-import org.apache.linkis.manager.label.entity.{EngineNodeLabel, Label}
+import org.apache.linkis.manager.label.LabelManagerUtils
+import org.apache.linkis.manager.label.entity.{EngineNodeLabel, Label, SerializableLabel}
+import org.apache.linkis.manager.label.entity.cluster.ClusterLabel
 import org.apache.linkis.manager.label.entity.em.EMInstanceLabel
 import org.apache.linkis.manager.label.service.NodeLabelService
 import org.apache.linkis.manager.service.common.label.LabelFilter
@@ -113,6 +116,7 @@ class DefaultEMEngineService extends EMEngineService with Logging {
       new AMErrorException(AMConstant.EM_ERROR_CODE, "No corresponding EM")
     }
     val emInstanceLabelOption = labels.asScala.find(_.isInstanceOf[EMInstanceLabel])
+    val clusterLabelOption = labels.asScala.find(_.isInstanceOf[ClusterLabel])
     val filterInstanceAndLabel = if (emInstanceLabelOption.isDefined) {
       val emInstanceLabel = emInstanceLabelOption.get.asInstanceOf[EMInstanceLabel]
       logger.info(s"use emInstanceLabel , will be route to ${emInstanceLabel.getServiceInstance}")
@@ -124,6 +128,28 @@ class DefaultEMEngineService extends EMEngineService with Logging {
       }
       instanceAndLabels.asScala.filter(
         _._1.getServiceInstance.equals(emInstanceLabel.getServiceInstance)
+      )
+    } else if (clusterLabelOption.isDefined) { // follow the style of emInstanceLabel
+      val clusterLabel = clusterLabelOption.get.asInstanceOf[ClusterLabel]
+      logger.info(
+        s"use clusterLabel , will be route to em of cluster ${clusterLabel.getClusterName}"
+      )
+      if (
+          !instanceAndLabels.asScala.exists(
+            _._2.asScala
+              .filter(_.getLabelKey.equals(clusterLabel.getLabelKey))
+              .exists(_.getValue.equals(clusterLabel.getValue))
+          )
+      ) {
+        throw new AMErrorException(
+          AMConstant.EM_ERROR_CODE,
+          s"You specified em of cluster ${clusterLabel.getClusterName}, but the corresponding EM does not exist in the Manager"
+        )
+      }
+      instanceAndLabels.asScala.filter(
+        _._2.asScala
+          .filter(_.getLabelKey.equals(clusterLabel.getLabelKey))
+          .exists(_.getValue.equals(clusterLabel.getValue))
       )
     } else {
       instanceAndLabels.asScala.toMap

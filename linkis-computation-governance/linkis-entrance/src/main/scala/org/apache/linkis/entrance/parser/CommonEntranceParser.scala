@@ -23,7 +23,9 @@ import org.apache.linkis.entrance.errorcode.EntranceErrorCodeSummary._
 import org.apache.linkis.entrance.exception.{EntranceErrorCode, EntranceIllegalParamException}
 import org.apache.linkis.entrance.persistence.PersistenceManager
 import org.apache.linkis.entrance.timeout.JobTimeoutManager
+import org.apache.linkis.governance.common.conf.GovernanceCommonConf
 import org.apache.linkis.governance.common.entity.job.JobRequest
+import org.apache.linkis.manager.common.conf.RMConfiguration
 import org.apache.linkis.manager.label.builder.factory.{
   LabelBuilderFactory,
   LabelBuilderFactoryContext
@@ -31,6 +33,7 @@ import org.apache.linkis.manager.label.builder.factory.{
 import org.apache.linkis.manager.label.conf.LabelCommonConfig
 import org.apache.linkis.manager.label.constant.LabelKeyConstant
 import org.apache.linkis.manager.label.entity.Label
+import org.apache.linkis.manager.label.entity.cluster.ClusterLabel
 import org.apache.linkis.manager.label.entity.engine.{CodeLanguageLabel, UserCreatorLabel}
 import org.apache.linkis.manager.label.utils.EngineTypeLabelCreator
 import org.apache.linkis.protocol.constants.TaskConstant
@@ -118,6 +121,7 @@ class CommonEntranceParser(val persistenceManager: PersistenceManager)
     checkEngineTypeLabel(labels)
     generateAndVerifyCodeLanguageLabel(runType, labels)
     generateAndVerifyUserCreatorLabel(executeUser, labels)
+    generateAndVerifyClusterLabel(labels)
 
     jobRequest.setLabels(new util.ArrayList[Label[_]](labels.values()))
     jobRequest.setSource(source)
@@ -186,6 +190,19 @@ class CommonEntranceParser(val persistenceManager: PersistenceManager)
       userCreatorLabel.setUser(executeUser)
       userCreatorLabel.setCreator(creator)
       labels.put(userCreatorLabel.getLabelKey, userCreatorLabel)
+    }
+  }
+
+  private def generateAndVerifyClusterLabel(labels: util.Map[String, Label[_]]): Unit = {
+    var clusterLabel = labels
+      .getOrDefault(LabelKeyConstant.YARN_CLUSTER_KEY, null)
+      .asInstanceOf[ClusterLabel]
+    if (clusterLabel == null) {
+      clusterLabel =
+        LabelBuilderFactoryContext.getLabelBuilderFactory.createLabel(classOf[ClusterLabel])
+      clusterLabel.setClusterName(RMConfiguration.DEFAULT_YARN_CLUSTER_NAME.getValue)
+      clusterLabel.setClusterType(RMConfiguration.DEFAULT_YARN_TYPE.getValue)
+      labels.put(clusterLabel.getLabelKey, clusterLabel)
     }
   }
 

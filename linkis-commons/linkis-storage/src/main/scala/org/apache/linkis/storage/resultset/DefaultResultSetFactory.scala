@@ -17,6 +17,7 @@
 
 package org.apache.linkis.storage.resultset
 
+import org.apache.linkis.common.conf.Configuration
 import org.apache.linkis.common.io.{Fs, FsPath, MetaData, Record}
 import org.apache.linkis.common.io.resultset.ResultSet
 import org.apache.linkis.common.utils.{Logging, Utils}
@@ -101,7 +102,11 @@ class DefaultResultSetFactory extends ResultSetFactory with Logging {
   ): ResultSet[_ <: MetaData, _ <: Record] = {
     if (fsPath == null) return null
     logger.info("Get Result Set By Path:" + fsPath.getPath)
-    val fs = FSFactory.getFsByProxyUser(fsPath, proxyUser)
+    val fs = if (Configuration.IS_MULTIPLE_YARN_CLUSTER.getValue) {
+      FSFactory.getFsByProxyUserAndLabel(fsPath, proxyUser, StorageConfiguration.RESULTSET_FS_LABEL)
+    } else {
+      FSFactory.getFsByProxyUser(fsPath, proxyUser)
+    }
     fs.init(new util.HashMap[String, String]())
     val inputStream = fs.read(fsPath)
     val resultSetType = Dolphin.getType(inputStream)

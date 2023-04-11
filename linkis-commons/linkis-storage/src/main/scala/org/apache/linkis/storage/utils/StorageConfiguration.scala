@@ -112,4 +112,6 @@ object StorageConfiguration {
     CommonVars[Boolean]("wds.linkis.storage.oss.prefix_check.enable", false)
 
   val OSS_PATH_PREFIX_REMOVE = CommonVars[Boolean]("wds.linkis.storage.oss.prefix.remove", true)
+
+  var RESULTSET_FS_LABEL = "resultSet"
 }

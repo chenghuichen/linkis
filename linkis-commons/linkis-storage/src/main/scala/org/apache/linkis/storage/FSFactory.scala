@@ -43,6 +43,11 @@ object FSFactory extends Logging {
     buildClasses(fsName)
   }
 
+  def getFs(fsType: String, proxyUser: String, label: String): Fs = {
+    val user = StorageUtils.getJvmUser
+    getBuildFactory(fsType).getFs(user, proxyUser, label)
+  }
+
   def getFs(fsType: String, proxyUser: String): Fs = {
     val user = StorageUtils.getJvmUser
     getBuildFactory(fsType).getFs(user, proxyUser)
@@ -83,6 +88,15 @@ object FSFactory extends Logging {
    */
   def getFsByProxyUser(fsPath: FsPath, proxyUser: String): Fs = {
     getFs(fsPath.getFsType(), proxyUser)
+  }
+
+  def getFsByLabel(fsPath: FsPath, label: String): Fs = {
+    val proxyUser = StorageUtils.getJvmUser
+    getFs(fsPath.getFsType(), proxyUser, label)
+  }
+
+  def getFsByProxyUserAndLabel(fsPath: FsPath, proxyUser: String, label: String): Fs = {
+    getFs(fsPath.getFsType(), proxyUser, label)
   }
 
   def getFSByLabel(fs: String, label: String): Fs = {

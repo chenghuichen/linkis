@@ -24,16 +24,13 @@ import org.apache.linkis.ecm.server.listener.{ECMClosedEvent, ECMReadyEvent}
 import org.apache.linkis.ecm.server.service.ECMRegisterService
 import org.apache.linkis.ecm.server.util.ECMUtils
 import org.apache.linkis.manager.common.entity.resource._
-import org.apache.linkis.manager.common.protocol.em.{
-  RegisterEMRequest,
-  RegisterEMResponse,
-  StopEMRequest
-}
+import org.apache.linkis.manager.common.protocol.em.{RegisterEMRequest, RegisterEMResponse, StopEMRequest}
 import org.apache.linkis.manager.label.constant.LabelKeyConstant
 import org.apache.linkis.rpc.Sender
-
 import java.util
 import java.util.Collections
+
+import org.apache.linkis.manager.label.entity.SerializableLabel
 
 class DefaultECMRegisterService extends ECMRegisterService with ECMEventListener with Logging {
 
@@ -57,6 +54,8 @@ class DefaultECMRegisterService extends ECMRegisterService with ECMEventListener
       "alias",
       ENGINE_CONN_MANAGER_SPRING_NAME
     )
+    labels.asScala += LabelKeyConstant.YARN_CLUSTER_KEY ->
+      (ECM_YARN_CLUSTER_TYPE + "_" + ECM_YARN_CLUSTER_NAME)
     // TODO: group  by key
     labels
   }

@@ -17,6 +17,7 @@
 
 package org.apache.linkis.storage.resultset
 
+import org.apache.linkis.common.conf.Configuration
 import org.apache.linkis.common.io.{FsPath, MetaData, Record}
 import org.apache.linkis.common.io.resultset.{ResultSet, ResultSetReader}
 import org.apache.linkis.common.utils.Logging
@@ -24,6 +25,7 @@ import org.apache.linkis.storage.FSFactory
 import org.apache.linkis.storage.errorcode.LinkisStorageErrorCodeSummary.TABLE_ARE_NOT_SUPPORTED
 import org.apache.linkis.storage.exception.StorageErrorException
 import org.apache.linkis.storage.resultset.table.{TableMetaData, TableRecord, TableResultSet}
+import org.apache.linkis.storage.utils.StorageConfiguration
 
 import java.io.InputStream
 
@@ -51,7 +53,11 @@ object ResultSetReader extends Logging {
     } else {
       val resPath = new FsPath(res)
       val resultSet = rsFactory.getResultSetByPath(resPath)
-      val fs = FSFactory.getFs(resPath)
+      val fs = if (Configuration.IS_MULTIPLE_YARN_CLUSTER.getValue) {
+        FSFactory.getFsByLabel(resPath, StorageConfiguration.RESULTSET_FS_LABEL)
+      } else {
+        FSFactory.getFs(resPath)
+      }
       fs.init(null)
       val reader = ResultSetReader.getResultSetReader(resultSet, fs.read(resPath))
       reader match {
@@ -83,7 +89,11 @@ object ResultSetReader extends Logging {
           TABLE_ARE_NOT_SUPPORTED.getErrorDesc
         )
       }
-      val fs = FSFactory.getFs(resPath)
+      val fs = if (Configuration.IS_MULTIPLE_YARN_CLUSTER.getValue) {
+        FSFactory.getFsByLabel(resPath, StorageConfiguration.RESULTSET_FS_LABEL)
+      } else {
+        FSFactory.getFs(resPath)
+      }
       logger.info("Try to init Fs with path:" + resPath.getPath)
       fs.init(null)
       ResultSetReader.getResultSetReader(resultSet.asInstanceOf[TableResultSet], fs.read(resPath))

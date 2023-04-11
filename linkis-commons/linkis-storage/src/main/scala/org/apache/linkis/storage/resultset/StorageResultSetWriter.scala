@@ -17,13 +17,15 @@
 
 package org.apache.linkis.storage.resultset
 
+import org.apache.linkis.common.conf.Configuration
 import org.apache.linkis.common.io.{Fs, FsPath, MetaData, Record}
 import org.apache.linkis.common.io.resultset.{ResultSerializer, ResultSet, ResultSetWriter}
 import org.apache.linkis.common.utils.{Logging, Utils}
 import org.apache.linkis.storage.FSFactory
 import org.apache.linkis.storage.conf.LinkisStorageConf
 import org.apache.linkis.storage.domain.Dolphin
-import org.apache.linkis.storage.utils.{FileSystemUtils, StorageUtils}
+import org.apache.linkis.storage.fs.FileSystem
+import org.apache.linkis.storage.utils.{FileSystemUtils, StorageConfiguration, StorageUtils}
 
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.hdfs.client.HdfsDataOutputStream
@@ -87,9 +89,22 @@ class StorageResultSetWriter[K <: MetaData, V <: Record](
         if (!fileCreated) {
           if (storePath != null && outputStream == null) {
             logger.info(s"Try to create a new file:${storePath}, with proxy user:${proxyUser}")
-            fs = FSFactory.getFsByProxyUser(storePath, proxyUser)
+            val fs = if (Configuration.IS_MULTIPLE_YARN_CLUSTER.getValue) {
+              FSFactory.getFsByProxyUserAndLabel(
+                storePath,
+                proxyUser,
+                StorageConfiguration.RESULTSET_FS_LABEL
+              )
+            } else {
+              FSFactory.getFsByProxyUser(storePath, proxyUser)
+            }
             fs.init(null)
-            FileSystemUtils.createNewFile(storePath, proxyUser, true)
+            FileSystemUtils.createNewFileWithFileSystem(
+              fs.asInstanceOf[FileSystem],
+              storePath,
+              proxyUser,
+              true
+            )
             outputStream = fs.write(storePath, true)
             logger.info(s"Succeed to create a new file:$storePath")
             fileCreated = true
